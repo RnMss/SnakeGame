@@ -66,32 +66,17 @@ genNeq p@(x, y) r@((a0,a1), (b0,b1)) = do
 
 newSnakeGame size@(width, height) pos@(x, y) food@(x1, y1)= 
     SnakeGame
-        { headPos =
-                if (0,0)<=pos && pos<size then
-                    pos
-                else 
-                    error "Out of map!"
+        { headPos = pos
         , mapSize = size
         , ticks   = 0
         , snakeLen= 3
-        , gameMap =
-                let w = width - 1
-                    h = height - 1
-                in ( 
-                    array ((0,0), (w,h))
-                        [ ( t
-                          , if t==pos then 
-                                Snake 0
-                            else if t==food then
-                                Food
-                            else
-                                Air
-                          )
-                        | t <- range ((0,0), (w,h))
-                        ] 
-                )
-        , dead = False
+        , gameMap = newMap
+        , dead    = False
         }
+    where
+        (w, h) = (width - 1, height - 1)
+        emptyMap = listArray ((0,0), (w,h)) (repeat Air)
+        newMap = emptyMap // [(pos, Snake 0), (food, Food)]
 
 operateOffset :: (Int, Int) -> SnakeOperation -> (Int, Int)
 operateOffset (x, y) L = (x-1, y)
@@ -165,6 +150,3 @@ nextSnakeState game oper =
             foods <- sequence (replicate foodCnt newFood)
             return $ catMaybes 
                 [ update i (m!i) foods | i <- indices m ]
-
-
-

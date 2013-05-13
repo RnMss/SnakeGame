@@ -42,9 +42,6 @@ dealEvent state (EventTimer clk) = do
     sw = state.>world
     operation = si.>lastOperation
 
-dealEvent state EventIdle = do
-    
-    return state
 
 dealEvent state (EventReshape (Size w h)) = do
     viewport $= (Position 0 0, Size w h)
