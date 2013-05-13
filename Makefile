@@ -1,5 +1,6 @@
-build/hello: Main.hs FGLUT.hs GameStates.hs SnakeGame.hs SnakeRender.hs
-	mkdir -p build
-	cd build; \
-	lndir ..; \
-	ghc -O -o hello ../Main.hs
+CPPFLAGS=-O2 -g
+LIBS=
+INCS=
+
+hello: main.cpp
+	$(CXX) -o $@ -std=c++0x $(LIBS) $(INCS) main.cpp -lglut -lgl
