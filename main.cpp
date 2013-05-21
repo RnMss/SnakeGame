@@ -41,7 +41,6 @@ void onWindowDrawIO()
     glLoadIdentity();
     glOrtho(0.0, 1.0, 1.0, 0.0, -1.0, 1.0);
 
-    Box();
     renderGameIO(game);
 
     glFlush();
