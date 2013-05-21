@@ -46,10 +46,10 @@ drawSnake =
     renderPrimitive Quads $ do
         color (Color3 1.0 1.0 1.0 :: Color3 GLfloat)
         mapM_ vertex (
-            [ Vertex2 0    0
-            , Vertex2 0.95 0
+            [ Vertex2 0.05 0.05
+            , Vertex2 0.95 0.05
             , Vertex2 0.95 0.95
-            , Vertex2 0    0.95 :: Vertex2 GLfloat
+            , Vertex2 0.05 0.95 :: Vertex2 GLfloat
             ] )
 
 drawFood =

@@ -1,6 +1,5 @@
-hello: Main.hs FGLUT.hs GameStates.hs SnakeGame.hs SnakeRender.hsa Randomize.hs
+build/hello: Main.hs FGLUT.hs GameStates.hs SnakeGame.hs SnakeRender.hs Randomize.hs Utils.hs
 	mkdir -p build
 	cd build; \
-	cp -l ../*.hs ./; \
+	ln -s ../*.hs ./; \
 	ghc -O -o hello ../Main.hs
-	mv build/hello ./hello

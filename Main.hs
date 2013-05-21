@@ -15,6 +15,7 @@ import Utils
 main = do 
     (progName, _) <- getArgsAndInitialize
     newGS <- runRandIO newGSRand
+    initialWindowSize $= Size 480 480 
     startGlut ("Snake") (200) (newGS) (dealEvent)
 
 dealEvent :: GS -> Event -> IO GS 

@@ -17,7 +17,7 @@ data GSInput = GSInput
 
 newGSRand :: Rand GS
 newGSRand = do
-    snakeWorld <- randSnakeGame (20, 20)
+    snakeWorld <- randSnakeGame (15, 15)
     return $ GS {
         input = GSInput {
             keyU = False,
