@@ -8,22 +8,12 @@
  -} 
 
 module FGLUT 
-    ( Event
-        ( EventDisplay
-        , EventIdle
-        , EventReshape
-        , EventKeyDown
-        , EventKeyUp
-        , EventMouseDown
-        , EventMouseUp
-        , EventMouseMove
-        , EventTimer
-        )
+    ( Event (..)
     , startGlut
     ) where
 
 import Graphics.Rendering.OpenGL
-import Graphics.UI.GLUT
+import Graphics.UI.GLFW
 import Data.IORef
 import System.Time
 -- import System.Clock  : Can't compile this in MacOS!!
@@ -46,7 +36,14 @@ startGlut :: String                         -- Window Title
           -> (state -> Event -> IO state)   -- Event Handler
           -> IO ()
 startGlut title timerIntv initState onEvent = do
-    mainWin <- createWindow title
+    initSuccess <- initialize
+
+    let dispOptions = defaultDisplatOptions
+                    { displayOptions_width  = 400
+                    , displayOptions_height = 400
+                    }
+
+    mainWin <- openWindow dispOptions
 
     world <- newIORef initState
     

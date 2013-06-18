@@ -1,9 +1,10 @@
 import Graphics.Rendering.OpenGL
-import Graphics.UI.GLUT
-
+import Graphics.UI.GLFW
+import Control.Monad
 import Data.Char
+import Data.IORef
 
-import FGLUT
+-- import FGLUT
 import GameStates
 import SnakeGame
 import qualified SnakeGame( SnakeOperation (U, D, L, R) )
@@ -13,10 +14,58 @@ import Randomize
 import Utils
 
 main = do 
-    (progName, _) <- getArgsAndInitialize
-    newGS <- runRandIO newGSRand
-    initialWindowSize $= Size 480 480 
-    startGlut ("Snake") (200) (newGS) (dealEvent)
+    initSuccess <- initialize
+
+    winSuccess <-
+        openWindow  ( Size 400 400 )
+                    [ DisplayRGBBits 8 8 8
+                    , DisplayAlphaBits 8 ]
+                    Window
+
+    windowTitle $= "Hello"
+    clearColor $= Color4 0 0 0 0
+    swapInterval $= (1000 `div` 60)
+
+    game <- runRandIO ( randSnakeGame (15, 15) )
+
+    windowClosed <- newIORef False
+
+    disableSpecial AutoPollEvent
+
+    windowSizeCallback $= \(Size w h) ->
+        do  viewport $= (Position 0 0, Size w h)
+            redraw game
+
+    windowRefreshCallback $= 
+        do  redraw game
+
+    windowCloseCallback $=
+        do  windowClosed $= True
+            return True
+
+    firstTime <- get time 
+    let loopTimer nextTime = do
+        pollEvents
+        q <- get windowClosed
+        when (not q) $ do
+            curTime <- get time
+            if curTime < nextTime
+            then do 
+                sleep 0.002
+                loopTimer nextTime
+            else do
+                redraw game
+                loopTimer (curTime+0.015)
+
+    loopTimer (firstTime+0.05)
+
+redraw game =
+    do  clear [ColorBuffer]
+        renderGame game
+        flush
+        swapBuffers
+
+{-
 
 dealEvent :: GS -> Event -> IO GS 
 dealEvent state EventDisplay = do
@@ -65,3 +114,5 @@ dealEvent state (EventKeyDown key position) =
     next si _   = si
 
 dealEvent state _ = return state
+
+-}
