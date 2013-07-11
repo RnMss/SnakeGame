@@ -17,16 +17,14 @@ instance Monad Rand where
         Rand (\gen -> (x, gen) )
 
     -- (>>=) :: Rand a -> (a -> Rand b) -> Rand b
-    m1 >>= fm2 = Rand m1_fm2
-        where {
-            m1_fm2 gen0 = (x2, gen2)
-            where {
-                Rand f1 = m1;
-                (x1, gen1) = f1 gen0;
-                Rand f2 = fm2 x1;
-                (x2, gen2) = f2 gen1;
-            }
-        }
+    Rand r0 >>= fm1 =
+        Rand $ \gen0 ->
+            let (x1, gen1) = r1 gen0
+                Rand r1 = fm1 x1
+            in  r1 gen1
+
+instance MonadState StdGen Rand where
+    state = Rand
 
 getRandom :: Rand Int
 getRandom = Rand random

@@ -4,66 +4,55 @@ import Control.Monad
 import Data.Char
 import Data.IORef
 
--- import FGLUT
+import GlfwFramework
+import Circuit
 import GameStates
 import SnakeGame
-import qualified SnakeGame( SnakeOperation (U, D, L, R) )
+import qualified SnakeGame( SnakeOperation (..) )
 import SnakeRender
 
 import Randomize
 import Utils
 
-main = do 
-    initSuccess <- initialize
+main = do
+    sf <- runRand handlerRand
+    runGlfw "Hello" (1000 / 60) sf
 
-    winSuccess <-
-        openWindow  ( Size 400 400 )
-                    [ DisplayRGBBits 8 8 8
-                    , DisplayAlphaBits 8 ]
-                    Window
+handlerRand :: Rand (Circuit UIEvent (IO Bool))
+handlerRand = do
+    gameInit <- randSnakeGame 
+    return handlerC
 
-    windowTitle $= "Hello"
-    clearColor $= Color4 0 0 0 0
-    swapInterval $= (1000 `div` 60)
+handlerC gameInit =
+    proc event -> do
+    e_res <- reshaped -< event
+    e_ref <- refreshed -< event
+    let redrawAction =
+        if isJust e_res || 
+           isJust e_ref 
+        then Just (redraw game)
+        else Nothing
 
-    game <- runRandIO ( randSnakeGame (15, 15) )
+    operation <- snakeOperation -< event
+    rec game <- regC gameInit -< gameNext
+        let gameNext = fmap (nextSnakeState game) operation
 
-    windowClosed <- newIORef False
+    returnA $ or_M $ catMaybes $
+        [ redrawAction ]
 
-    disableSpecial AutoPollEvent
 
-    windowSizeCallback $= \(Size w h) ->
-        do  viewport $= (Position 0 0, Size w h)
-            redraw game
 
-    windowRefreshCallback $= 
-        do  redraw game
+or_M, and_M :: Monad m => [m Bool] -> m Bool
+or_M  xs = sequence xs >>= (return . or )
+and_M xs = sequence xs >>= (return . and)
 
-    windowCloseCallback $=
-        do  windowClosed $= True
-            return True
-
-    firstTime <- get time 
-    let loopTimer nextTime = do
-        pollEvents
-        q <- get windowClosed
-        when (not q) $ do
-            curTime <- get time
-            if curTime < nextTime
-            then do 
-                sleep 0.002
-                loopTimer nextTime
-            else do
-                redraw game
-                loopTimer (curTime+0.015)
-
-    loopTimer (firstTime+0.05)
 
 redraw game =
     do  clear [ColorBuffer]
         renderGame game
         flush
         swapBuffers
+        return False
 
 {-
 
