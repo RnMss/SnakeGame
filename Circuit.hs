@@ -4,12 +4,14 @@ module Circuit
     ( Circuit
     , runCircuit, runCircuits
     , regC, delayC, bufferC, foldC
+    , trigger
     , CircuitT
     , runCircuitT, runCircuitT' )
 where
 
 import Control.Arrow
 import Control.Category
+import Control.Monad.State.Class
 import Prelude hiding (id, (.))
  
 newtype Circuit a b = Circuit 
@@ -139,16 +141,22 @@ foldC initial f =
 
 trigger :: Circuit a b -> Circuit (Maybe a) (Maybe b)
 trigger cir = Circuit run' where
-    run' (Just a) = (Just b, trigger cir')
-    run' Nothing  = (Nothing, trigger cir')
-    (b, cir') = runCircuit cir a
+    run' (Just a) = 
+        let (b, cir') = runCircuit cir a
+        in  (Just b, trigger cir')
+    run' Nothing  = (Nothing, trigger cir)
+    
 
-stateToCircuit :: (MonadState m) => (a -> m b) -> (m b -> b) -> Circuit a b
+stateToCircuit :: (MonadState s m) 
+               => (a -> m b) 
+               -> (m (b, s) -> (b, s)) 
+               -> Circuit a b
 stateToCircuit action run =
     Circuit $ \a -> 
-        let (b, n) = run $ do
+        let (b, s) = run step
+            step = do
                 b <- action a
-                n <- get
-                return (b, n)
-            run' m = run $! put n >> m
+                s <- get
+                return (b, s)
+            run' m = run $! put s >> m
         in  (b, stateToCircuit action run')
