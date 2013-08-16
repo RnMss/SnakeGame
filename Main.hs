@@ -6,102 +6,88 @@ import Data.IORef
 
 import GlfwFramework
 import Circuit
-import GameStates
 import SnakeGame
-import qualified SnakeGame( SnakeOperation (..) )
+import qualified SnakeGame as S
 import SnakeRender
 
 import Randomize
 import Utils
 
 main = do
-    sf <- runRand handlerRand
-    runGlfw "Hello" (1000 / 60) sf
+    game <- runRandIO $ randSnakeGame (15, 15)
+    vGame <- newIORef game
+    vOper <- newIORef S.U
 
-handlerRand :: Rand (Circuit UIEvent (IO Bool))
-handlerRand = do
-    gameInit <- randSnakeGame 
-    return handlerC
+    runGlfw (RunGlfwConf "Hello" 0.2)
+            (handleEvents (vOper, vGame))
 
-handlerC gameInit =
-    proc event -> do
-    e_res <- reshaped -< event
-    e_ref <- refreshed -< event
-    let redrawAction =
-        if isJust e_res || 
-           isJust e_ref 
-        then Just (redraw game)
-        else Nothing
+handleEvents :: (IORef Operation, IORef SnakeGame)
+             -> UIEvent -> IO Bool
+handleEvents (vOper, vGame) event = do
 
-    operation <- snakeOperation -< event
-    rec game <- regC gameInit -< gameNext
-        let gameNext = fmap (nextSnakeState game) operation
+    dealEvent event
+    where  
+    dealEvent :: UIEvent -> IO Bool 
+    dealEvent UIDisplay = do
 
-    returnA $ or_M $ catMaybes $
-        [ redrawAction ]
+        clear [ColorBuffer]
 
-
-
-or_M, and_M :: Monad m => [m Bool] -> m Bool
-or_M  xs = sequence xs >>= (return . or )
-and_M xs = sequence xs >>= (return . and)
-
-
-redraw game =
-    do  clear [ColorBuffer]
+        game <- readIORef vGame
         renderGame game
+
+        let title = if dead game 
+            then "Dead" else "Snake"
+        windowTitle $= title
+            
         flush
         swapBuffers
+
         return False
 
-{-
+    dealEvent (UITimer clk) = do
 
-dealEvent :: GS -> Event -> IO GS 
-dealEvent state EventDisplay = do
-    clear [ColorBuffer]
+        game <- get vGame
+        oper <- get vOper
 
-    renderGame (state.>world)
+        nextGame <- runRandIO (nextSnakeState game oper)
+        vGame $=! nextGame
 
-    windowTitle $= if (state.>world.>dead) 
-                    then "Dead"
-                    else "Snake"
+        dealEvent UIDisplay
 
-    flush
+    dealEvent (UIReshape size) = do
+        
+        viewport $= (Position 0 0, size)
+        dealEvent UIDisplay
 
-    return state
+    dealEvent (UIKeyDown key) =
+        let 
+            f (CharKey 'W') =
+                modifyIORef' vOper (nextSnakeOpr S.U)
+            f (CharKey 'A') =           
+                modifyIORef' vOper (nextSnakeOpr S.L)
+            f (CharKey 'S') =
+                modifyIORef' vOper (nextSnakeOpr S.D)
+            f (CharKey 'D') =
+                modifyIORef' vOper (nextSnakeOpr S.R)
 
-dealEvent state (EventTimer clk) = do
-    nextWorld <- runRandIO (nextSnakeState sw operation)
-    return state { 
-        world = nextWorld
-    }
+            f (CharKey 'O') = do
+                game <- runRandIO (randSnakeGame (15, 15))
+                vGame $= game
 
-    where
-    si = state.>input
-    sw = state.>world
-    operation = si.>lastOperation
+            f _ = return ()
 
+        in f key >> return False
 
-dealEvent state (EventReshape (Size w h)) = do
-    viewport $= (Position 0 0, Size w h)
-    postRedisplay Nothing
-    return state
+    dealEvent UIClose = return True
+    dealEvent _ = return False
 
-dealEvent state (EventKeyDown key position) =
-    if key' == 'o' 
-        then runRandIO newGSRand
-        else return state { input = next (state.>input) key' }
-
-    where
-    key' = toLower key
-
-    next :: GSInput -> Char -> GSInput
-    next si 'w' = si { lastOperation = SnakeGame.U }
-    next si 'a' = si { lastOperation = SnakeGame.L }
-    next si 's' = si { lastOperation = SnakeGame.D }
-    next si 'd' = si { lastOperation = SnakeGame.R }
-    next si _   = si
-
-dealEvent state _ = return state
-
--}
+nextSnakeOpr :: Operation -> Operation -> Operation
+nextSnakeOpr newOpr oldOpr =
+    if opposite oldOpr newOpr then oldOpr else newOpr
+    
+opposite :: Operation -> Operation -> Bool
+opposite S.U S.D = True
+opposite S.D S.U = True
+opposite S.L S.R = True
+opposite S.R S.L = True
+opposite _ _ = False

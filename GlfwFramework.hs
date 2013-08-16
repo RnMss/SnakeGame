@@ -3,13 +3,14 @@
  - GLUT  = OpenGL utility toolkit
  
  {- Oh, nested comment is allowed! -}
- Unlike C/C++ :
- /* /* there is */ error here!! */
+  - Unlike C/C++ :
+    /* /* there is */ error here!! */
  -} 
 
 module GlfwFramework 
     ( UIEvent (..)
     , runGlfw
+    , RunGlfwConf (..)
     ) where
 
 import Graphics.Rendering.OpenGL
@@ -17,6 +18,9 @@ import Graphics.UI.GLFW
 import Data.IORef
 import System.Time
 import Circuit
+import Utils
+
+import Control.Arrow
 
 data UIEvent
     = UIDisplay
@@ -33,88 +37,101 @@ data UIEvent
     | UIMouseWheel !Int
     | UITimer !Double
     | UINothing    -- unused: to prevent pattern matching warning
-    deriving Eq
+    deriving Show
 
-runGlfw :: String                     -- Window Title
-        -> Double                     -- Timer Interval
-        -> Circuit UIEvent (IO Bool)  -- Event Handler (Arrow, Yampa-like somthing)
-        -> IO ()
-runGlfw title timerIntv circuit = do
+simpleInit = do
     _init_success <- initialize
 
-    _win_success <-
-        openWindow  ( Size 400 400 )
-                    [ DisplayRGBBits 8 8 8
-                    , DisplayAlphaBits 8 ]
-                    Window
+    -- openWindowHint OpenGLVersionMajor 2
+    -- openWindowHint OpenGLVersionMinor 1
 
-    _main_win <- openWindow dispOptions
+    _win_success <- openWindow 
+            ( Size 400 400 )
+            [ DisplayRGBBits 8 8 8
+            , DisplayAlphaBits 8 ]
+            Window
     
-    windowTitle $= title
-    swapInterval $= round timerIntv
-
-    _will_exit   <- newIORef False
-    _signal_func <- newIORef circuit 
-
+    swapInterval $= 1
     disableSpecial AutoPollEvent
 
-    let handleEvent event =
-        do  _sf <- get _signal_func
-            let (_out, _sf_next) = runCircuit _sf event
-            _signal_func $= _sf_next
-            _exit <- _out
-            _will_exit $~! ( _exit || ) 
+    return (_init_success && _win_success)
 
-    windowSizeCallback    $= \s -> handleEvent (UIReshape s)
-    windowRefreshCallback $=       handleEvent (UIDisplay)
-    mousePosCallback      $= \p -> handleEvent (UIMouseMove p)
-    mouseWheelCallback    $= \a -> handleEvent (UIMouseWheel a)
-    
-    charCallback $= \char state ->
-        let event = case state of 
-            Press   -> UICharDown button
-            Release -> UICharUp button
-        in handleEvent event
+data RunGlfwConf = RunGlfwConf
+        { confTitle :: String
+        , confTimer :: Double
+        }
 
-    mouseButtonCallback $= \button state ->
-        let event = case state of 
-            Press   -> UIMouseDown button
-            Release -> UIMouseUp button
-        in handleEvent event
+runGlfw :: RunGlfwConf
+        -> (UIEvent -> IO Bool)   -- Event Handler
+        -> IO ()
+runGlfw conf handler = do
 
-    keyCallback $= \key state -> 
-        let event = case state of
-            Press   -> UIKeyDown key
-            Release -> UIKeyUp key
-        in handleEvent event
+    simpleInit
+    windowTitle $= conf.>confTitle
 
-    windowCloseCallback $= (handleEvent UIClose >> get _will_exit)
+    varExit  <- newIORef False
+
+    let doEvt event = do
+        _is_exit <- handler event
+        varExit $= _is_exit
+
+    windowCloseCallback   $= (doEvt UIClose >> get varExit)
+
+    windowSizeCallback    $= onWindowSize doEvt
+    windowRefreshCallback $= onWindowRefresh doEvt
+    mousePosCallback      $= onMouseMove doEvt
+    mouseWheelCallback    $= onMouseWheel doEvt
+    charCallback          $= onChar doEvt
+    mouseButtonCallback   $= onMouseButton doEvt
+    keyCallback           $= onKey doEvt
 
     firstTime <- get time 
-    let loopTimer nextTime = do
+
+    let timerIntv = conf.>confTimer
+    let loopWithTimer nextTime = do
         pollEvents
-        q <- get _will_exit
-        when (not q) $ do
+        q <- get varExit
+        if q then 
+            return ()
+        else do
             curTime <- get time
             if curTime < nextTime
             then do 
                 sleep 0.002
-                loopTimer nextTime
+                loopWithTimer nextTime
             else do
-                handleEvent (UITimer curTime)
-                loopTimer (curTime + timerIntv)
+                doEvt (UITimer curTime)
+                loopWithTimer (curTime + timerIntv)
     
     firstTime <- get time 
-    loopTimer (firstTime+0.05)
+    loopWithTimer (firstTime+0.05)
 
-reshaped :: Circuit UIEvent (Maybe Size)
-reshaped = arr $ \event -> case 
-                UIReshape size -> Just size
-                _              -> Nothing
+onMouseMove doEvt pos =
+    doEvt (UIMouseMove pos)
 
-refreshed :: Circuit UIEvent (Maybe ())
-refreshed = arr $ \event -> case
-                UIDisplay -> Just ()
-                _         -> Nothing
+onMouseWheel doEvt amnt =
+    doEvt (UIMouseWheel amnt)
 
+onWindowSize doEvt size =
+    doEvt (UIReshape size)
 
+onWindowRefresh doEvt =
+    doEvt UIDisplay
+
+onChar doEvt char state =
+    let event = case state of { 
+        Press   -> UICharDown char;
+        Release -> UICharUp char;
+    } in doEvt event
+
+onMouseButton doEvt button state =
+    let event = case state of { 
+        Press   -> UIMouseDown button;
+        Release -> UIMouseUp button;
+    } in doEvt event
+
+onKey doEvt key state =
+    let event = case state of {
+        Press   -> UIKeyDown key;
+        Release -> UIKeyUp key;
+    } in doEvt event

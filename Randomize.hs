@@ -1,3 +1,5 @@
+{-# language MultiParamTypeClasses #-}
+
 module Randomize
     ( Rand
     , runRand
@@ -7,6 +9,7 @@ module Randomize
     ) where
 
 import System.Random
+import Control.Monad.State.Class
 
 data Rand a =
     Rand (StdGen -> (a, StdGen))
@@ -19,7 +22,7 @@ instance Monad Rand where
     -- (>>=) :: Rand a -> (a -> Rand b) -> Rand b
     Rand r0 >>= fm1 =
         Rand $ \gen0 ->
-            let (x1, gen1) = r1 gen0
+            let (x1, gen1) = r0 gen0
                 Rand r1 = fm1 x1
             in  r1 gen1
 

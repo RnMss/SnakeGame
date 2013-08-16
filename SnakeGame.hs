@@ -1,9 +1,10 @@
 module SnakeGame
     ( SnakeGame
     , SnakeState ( Air, Food, Snake )
-    , SnakeOperation ( U, D, L, R )
+    , Operation ( U, D, L, R )
     , gameMap
     , mapSize
+    , headPos
     , dead
     , nextSnakeState
     , randSnakeGame
@@ -34,7 +35,7 @@ isFood _    = False
 isAir Air = True
 isAir _   = False
 
-data SnakeOperation = U | D | L | R
+data Operation = U | D | L | R
  
 data SnakeGame = SnakeGame
     { gameMap :: Array (Int,Int) SnakeState
@@ -78,14 +79,14 @@ newSnakeGame size@(width, height) pos@(x, y) food@(x1, y1)=
         emptyMap = listArray ((0,0), (w,h)) (repeat Air)
         newMap = emptyMap // [(pos, Snake 0), (food, Food)]
 
-operateOffset :: (Int, Int) -> SnakeOperation -> (Int, Int)
+operateOffset :: (Int, Int) -> Operation -> (Int, Int)
 operateOffset (x, y) L = (x-1, y)
 operateOffset (x, y) R = (x+1, y)
 operateOffset (x, y) U = (x, y-1)
 operateOffset (x, y) D = (x, y+1)
 
 nextSnakeState :: 
-    SnakeGame -> SnakeOperation -> Rand SnakeGame
+    SnakeGame -> Operation -> Rand SnakeGame
 
 nextSnakeState game oper =
     if game .> dead then

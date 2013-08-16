@@ -12,19 +12,19 @@ renderGame game = do
     let m0 = game .> gameMap
     let points = indices m0
     let (sx, sy) = game .> mapSize
-    let sx' = fromIntegral sx :: Float
-    let sy' = fromIntegral sy :: Float
+    let sx' = fromIntegral sx :: GLfloat
+    let sy' = fromIntegral sy :: GLfloat
 
     preservingMatrix $ do
         translate (Vector3 (-1) (1) (0) :: Vector3 GLfloat)
-        scale (2.0/sx') (-2.0/sy') 0
+        scale (2/sx') (-2/sy') 0
 
         forM_ points (\pos@(x, y) -> do
-            let x' = fromIntegral x :: Float
-            let y' = fromIntegral y :: Float
+            let x' = fromIntegral x :: GLfloat
+            let y' = fromIntegral y :: GLfloat
 
             preservingMatrix $ do
-                translate (Vector3 x' y' 0)
+                translate (Vector3 x' y' 0 :: Vector3 GLfloat)
 
                 case (m0 ! pos) of
                     Snake _ -> drawSnake
