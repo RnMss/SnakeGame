@@ -124,12 +124,15 @@ nextSnakeState game oper =
     collideSnake= isSnake (m0!nextPos)
     collideFood = isFood (m0!nextPos)
 
-    newFood :: Rand (Int, Int)
-    newFood = do
+    newFood :: Array (Int, Int) SnakeState 
+            -> [ (Int, Int) ]
+            -> Rand (Int, Int)
+    newFood snakeMap avoidPos = do
         randX <- getRandomR (0, sx-1)
         randY <- getRandomR (0, sy-1)
         let foodPos = (randX, randY)
-        if isAir (m0!foodPos) && foodPos /= nextPos
+        if isAir (snakeMap!foodPos) && 
+            (not  (foodPos `elem` avoidPos) )
             then return foodPos
             else newFood
 
@@ -148,6 +151,6 @@ nextSnakeState game oper =
                     _        -> Nothing
 
         diffsRand = do
-            foods <- sequence (replicate foodCnt newFood)
+            foods <- sequence (replicate foodCnt (newFood m [nextPos]))
             return $ catMaybes 
                 [ update i (m!i) foods | i <- indices m ]
